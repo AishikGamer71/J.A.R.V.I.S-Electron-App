@@ -1,0 +1,30 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.env
+.env.*
+.DS_Store
+*.log
+
+# Python virtualenv & caches
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+*.db
+*.sqlite
+*.sqlite3
+data/
+sandbox/
+
+# Generated at build time (scripts/write-build-stamp.mjs, tsc) — do not commit
+build/
+
+# Runtime user/machine data written by the app in dev mode — do not commit
+storage/
+
+# Local tool cache (Codex CLI run logs / package cache) — do not commit
+.codex/
+*.tsbuildinfo
+

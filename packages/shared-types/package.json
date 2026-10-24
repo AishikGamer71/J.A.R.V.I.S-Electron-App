@@ -1,0 +1,14 @@
+{
+  "name": "@jarvis/shared-types",
+  "version": "1.0.0",
+  "description": "Shared types and schemas for JARVIS AI monorepo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

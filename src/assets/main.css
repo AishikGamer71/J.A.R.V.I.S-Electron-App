@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+:root {
+  --theme-primary: #10b981;
+  --theme-primary-hover: rgba(16, 185, 129, 0.85);
+  --theme-secondary: #06b6d4;
+  --theme-bg: #050505;
+  --theme-surface: rgba(12, 20, 16, 0.75);
+  --theme-border: rgba(16, 185, 129, 0.25);
+  --theme-glow: rgba(16, 185, 129, 0.4);
+  --theme-blur: 16px;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  background-color: var(--theme-bg, #050505);
+  transition: background-color 0.3s ease;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+button {
+  -webkit-app-region: no-drag;
+}
+
+.scrollbar-small {
+  scrollbar-color: var(--theme-border, rgba(16, 185, 129, 0.3)) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border, rgba(16, 185, 129, 0.3));
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-primary, rgba(16, 185, 129, 0.6));
+}
+
+.react-flow__controls {
+  background-color: #111113 !important;
+  border: 1px solid #27272a !important;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid #27272a !important;
+  fill: #71717a !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #18181b !important;
+}
+
+.react-flow__controls-button svg:hover {
+  fill: #a1a1aa !important;
+}
