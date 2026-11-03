@@ -1,0 +1,34 @@
+[project]
+name = "jarvis-voice-service"
+version = "4.0.0"
+description = "J.A.R.V.I.S Voice Service — Neural STT, Piper TTS & openWakeWord"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "websockets>=12.0",
+    "pydantic>=2.7.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "sounddevice>=0.4.6",
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
+    "pyttsx3>=2.90",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.optional-dependencies]
+neural = [
+    "faster-whisper>=1.0.0",
+    "openwakeword>=0.6.0",
+    "piper-tts>=1.2.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
