@@ -1,0 +1,20 @@
+[package]
+name = "jarvis_native_core"
+version = "1.0.0"
+edition = "2021"
+
+[lib]
+name = "jarvis_native_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21.2", features = ["extension-module"] }
+windows-sys = { version = "0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_System_Power",
+    "Win32_System_SystemInformation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Graphics_Gdi"
+] }
+regex = "1.10"

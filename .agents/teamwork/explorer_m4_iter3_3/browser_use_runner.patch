@@ -1,0 +1,42 @@
+--- a/backend/automation/browser_use_runner.py
++++ b/backend/automation/browser_use_runner.py
+@@ -661,7 +661,7 @@
+         if self._is_active_playwright():
+             try:
+                 text = self._page.inner_text("body")
+-                if text:
++                if text is not None:
+                     return text
+             except Exception as e:
+                 logger.warning(f"Live extract_text failed ({e}); using mock text.")
+@@ -673,8 +673,28 @@
+         self._ensure_browser()
+         if self._is_active_playwright():
++            # In Chromium V8, naked 'return' outside a function body raises SyntaxError.
++            # If script contains a return statement and is not already a function or IIFE,
++            # wrap it into an IIFE: (() => { <script> })()
++            exec_script = script
++            stripped = script.strip()
++            if re.search(r"\breturn\b", stripped):
++                is_func = bool(
++                    re.match(
++                        r"^(?:async\s+)?(?:function\b|\([^)]*\)\s*=>|[a-zA-Z_$][a-zA-Z0-9_$]*\s*=>|\(\s*(?:async\s+)?(?:function|\([^)]*\)\s*=>))",
++                        stripped,
++                    )
++                )
++                if not is_func:
++                    exec_script = f"(() => {{\n{script}\n}})()"
++
+             try:
+-                return self._page.evaluate(script, *args)
++                return self._page.evaluate(exec_script, *args)
+             except Exception as e:
++                err_str = str(e)
++                if exec_script == script and ("Illegal return statement" in err_str or ("SyntaxError" in err_str and "return" in err_str.lower())):
++                    try:
++                        return self._page.evaluate(f"(() => {{\n{script}\n}})()", *args)
++                    except Exception as wrap_e:
++                        logger.warning(f"Wrapped evaluate_js fallback failed ({wrap_e})")
+                 logger.warning(f"Live evaluate_js failed ({e}); using mock evaluation.")
+ 
+         return self._mock_session.evaluate_js(script)

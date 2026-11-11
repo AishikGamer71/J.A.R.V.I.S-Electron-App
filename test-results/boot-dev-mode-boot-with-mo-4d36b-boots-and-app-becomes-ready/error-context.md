@@ -1,0 +1,270 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic:
+      - generic: JARVIS
+    - generic [ref=e5]:
+      - button "Minimize" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]
+      - button "Maximize" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+      - button "Close" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+  - generic [ref=e16]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - img [ref=e19]
+        - generic [ref=e21]:
+          - generic [ref=e22]: JARVIS AI
+          - generic [ref=e23]: NEURAL INTERFACE
+      - generic [ref=e24]:
+        - button "CHAT" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+          - generic [ref=e28]: CHAT
+        - button "MODULES" [ref=e29] [cursor=pointer]:
+          - img [ref=e30]
+          - generic [ref=e32]: MODULES
+        - button "DASHBOARD" [ref=e33] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e36]: DASHBOARD
+        - button "TASK MANAGER" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e41]: TASK MANAGER
+        - button "Apps" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e45]: Apps
+        - button "NOTES" [ref=e46] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e49]: NOTES
+        - button "GALLERY" [ref=e50] [cursor=pointer]:
+          - img [ref=e51]
+          - generic [ref=e53]: GALLERY
+        - button "TERMINAL" [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+          - generic [ref=e57]: TERMINAL
+        - button "PHONE" [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+          - generic [ref=e61]: PHONE
+        - button "SETTINGS" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+          - generic [ref=e65]: SETTINGS
+      - generic [ref=e66]:
+        - button "SYSTEM STANDBY" [ref=e67] [cursor=pointer]:
+          - generic [ref=e69]: SYSTEM STANDBY
+        - generic [ref=e70]: 6:13:19 PM
+    - generic [ref=e73]:
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - generic [ref=e77]:
+            - img [ref=e78]
+            - text: NEURAL CORE SETTINGS
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e83]: Compute Mode
+              - generic [ref=e84]:
+                - button "local" [ref=e85]
+                - button "cloud" [ref=e86]
+                - button "adaptive" [ref=e87]
+              - paragraph [ref=e88]: Adaptive mode dynamically routes simple tasks to Local, and complex tasks to Cloud.
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - generic [ref=e91]: Active Model
+                - generic [ref=e93] [cursor=pointer]:
+                  - generic [ref=e94]: Gemini 2.5 Pro
+                  - img [ref=e95]
+              - generic [ref=e97]:
+                - generic [ref=e98]: Reasoning
+                - generic [ref=e100] [cursor=pointer]:
+                  - generic [ref=e101]: Medium
+                  - img [ref=e102]
+        - generic [ref=e104]:
+          - generic [ref=e106]:
+            - generic [ref=e107]:
+              - img [ref=e108]
+              - text: NETWORK TELEMETRY
+            - generic [ref=e110]: STANDBY
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - generic [ref=e113]: WSS LATENCY
+              - generic [ref=e114]:
+                - img [ref=e115]
+                - text: "--"
+            - generic [ref=e117]:
+              - generic [ref=e118]: PACKET RATE
+              - generic [ref=e119]: "--"
+            - generic [ref=e120]:
+              - generic [ref=e121]: ROUTING
+              - generic [ref=e122]:
+                - text: LOCAL
+                - img [ref=e123]
+          - generic [ref=e125]:
+            - generic [ref=e127]: TX
+            - generic [ref=e130]: RX
+        - generic [ref=e132]:
+          - generic [ref=e134]:
+            - img [ref=e135]
+            - text: CORE METRICS
+          - generic [ref=e137]:
+            - generic [ref=e138] [cursor=pointer]:
+              - generic:
+                - img
+              - generic [ref=e140]:
+                - img [ref=e142]
+                - generic [ref=e144]: CPU LOAD
+              - generic [ref=e146]: "--"
+            - generic [ref=e148] [cursor=pointer]:
+              - generic:
+                - img
+              - generic [ref=e150]:
+                - img [ref=e152]
+                - generic [ref=e154]: RAM USAGE
+              - generic [ref=e156]: "--"
+            - generic [ref=e158] [cursor=pointer]:
+              - generic:
+                - img
+              - generic [ref=e160]:
+                - img [ref=e162]
+                - generic [ref=e164]: TEMP
+              - generic [ref=e166]: "--"
+            - generic [ref=e168] [cursor=pointer]:
+              - generic:
+                - img
+              - generic [ref=e170]:
+                - img [ref=e172]
+                - generic [ref=e174]: OS
+              - generic [ref=e176]: "--"
+      - generic [ref=e177]:
+        - button "Focus" [ref=e179] [cursor=pointer]:
+          - img [ref=e180]
+          - generic [ref=e182]: Focus
+        - generic [ref=e187]:
+          - button [ref=e188] [cursor=pointer]:
+            - img [ref=e189]
+          - button [ref=e191] [cursor=pointer]:
+            - img [ref=e193]
+          - button [ref=e195] [cursor=pointer]:
+            - img [ref=e196]
+      - generic [ref=e199]:
+        - generic [ref=e200]:
+          - generic [ref=e201]:
+            - img [ref=e202]
+            - text: TRANSCRIPT
+          - generic [ref=e204]: LIVE-LOG
+        - generic [ref=e205]:
+          - generic [ref=e207]:
+            - generic [ref=e208]:
+              - generic [ref=e209]: YOU
+              - button "Copy message" [ref=e210] [cursor=pointer]:
+                - img [ref=e211]
+            - paragraph [ref=e214]: hi
+          - generic [ref=e216]:
+            - generic [ref=e217]:
+              - generic [ref=e218]: YOU
+              - button "Copy message" [ref=e219] [cursor=pointer]:
+                - img [ref=e220]
+            - paragraph [ref=e223]: hi
+          - generic [ref=e225]:
+            - generic [ref=e226]:
+              - generic [ref=e227]: YOU
+              - button "Copy message" [ref=e228] [cursor=pointer]:
+                - img [ref=e229]
+            - paragraph [ref=e232]: now
+          - generic [ref=e234]:
+            - generic [ref=e235]:
+              - generic [ref=e236]: YOU
+              - button "Copy message" [ref=e237] [cursor=pointer]:
+                - img [ref=e238]
+            - paragraph [ref=e241]: hi
+          - generic [ref=e243]:
+            - generic [ref=e244]:
+              - generic [ref=e245]: YOU
+              - button "Copy message" [ref=e246] [cursor=pointer]:
+                - img [ref=e247]
+            - paragraph [ref=e250]: hi
+          - generic [ref=e252]:
+            - generic [ref=e253]:
+              - generic [ref=e254]: YOU
+              - button "Copy message" [ref=e255] [cursor=pointer]:
+                - img [ref=e256]
+            - paragraph [ref=e259]: hi
+          - generic [ref=e261]:
+            - generic [ref=e262]:
+              - generic [ref=e263]: YOU
+              - button "Copy message" [ref=e264] [cursor=pointer]:
+                - img [ref=e265]
+            - paragraph [ref=e268]: open chrome
+          - generic [ref=e270]:
+            - generic [ref=e271]:
+              - generic [ref=e272]: YOU
+              - button "Copy message" [ref=e273] [cursor=pointer]:
+                - img [ref=e274]
+            - paragraph [ref=e277]: hi
+          - generic [ref=e279]:
+            - generic [ref=e280]:
+              - generic [ref=e281]: YOU
+              - button "Copy message" [ref=e282] [cursor=pointer]:
+                - img [ref=e283]
+            - paragraph [ref=e286]: jarvis
+          - generic [ref=e288]:
+            - generic [ref=e289]:
+              - generic [ref=e290]: YOU
+              - button "Copy message" [ref=e291] [cursor=pointer]:
+                - img [ref=e292]
+            - paragraph [ref=e295]: hi
+          - generic [ref=e297]:
+            - generic [ref=e298]:
+              - generic [ref=e299]: YOU
+              - button "Copy message" [ref=e300] [cursor=pointer]:
+                - img [ref=e301]
+            - paragraph [ref=e304]: hi
+          - generic [ref=e306]:
+            - generic [ref=e307]:
+              - generic [ref=e308]: YOU
+              - button "Copy message" [ref=e309] [cursor=pointer]:
+                - img [ref=e310]
+            - paragraph [ref=e313]: hi
+          - generic [ref=e315]:
+            - generic [ref=e316]:
+              - generic [ref=e317]: YOU
+              - button "Copy message" [ref=e318] [cursor=pointer]:
+                - img [ref=e319]
+            - paragraph [ref=e322]: hello
+          - generic [ref=e324]:
+            - generic [ref=e325]:
+              - generic [ref=e326]: YOU
+              - button "Copy message" [ref=e327] [cursor=pointer]:
+                - img [ref=e328]
+            - paragraph [ref=e331]: hi
+          - generic [ref=e333]:
+            - generic [ref=e334]:
+              - generic [ref=e335]: YOU
+              - button "Copy message" [ref=e336] [cursor=pointer]:
+                - img [ref=e337]
+            - paragraph [ref=e340]: hello
+          - generic [ref=e342]:
+            - generic [ref=e343]:
+              - generic [ref=e344]: YOU
+              - button "Copy message" [ref=e345] [cursor=pointer]:
+                - img [ref=e346]
+            - paragraph [ref=e349]: open opera
+          - generic [ref=e351]:
+            - generic [ref=e352]:
+              - generic [ref=e353]: YOU
+              - button "Copy message" [ref=e354] [cursor=pointer]:
+                - img [ref=e355]
+            - paragraph [ref=e358]: jarvis
+          - generic [ref=e360]:
+            - generic [ref=e361]:
+              - generic [ref=e362]: YOU
+              - button "Copy message" [ref=e363] [cursor=pointer]:
+                - img [ref=e364]
+            - paragraph [ref=e367]: hey jarvis
+        - generic [ref=e369]:
+          - button [ref=e370] [cursor=pointer]:
+            - img [ref=e371]
+          - textbox "System offline..." [disabled] [ref=e373]
+          - button [disabled] [ref=e374]:
+            - img [ref=e375]
+```

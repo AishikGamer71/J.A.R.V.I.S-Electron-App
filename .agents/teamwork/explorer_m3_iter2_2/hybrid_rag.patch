@@ -1,0 +1,186 @@
+--- a/backend/memory/hybrid_rag.py
++++ b/backend/memory/hybrid_rag.py
+@@ -17,6 +17,7 @@
+ import sqlite3
+ import threading
+ import time
++from contextlib import contextmanager
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ from typing import Any, Dict, List, Optional, Tuple, Union
+@@ -32,8 +33,9 @@
+     """
+     Computes Reciprocal Rank Fusion score: 1.0 / (k + rank).
+     rank is 1-based (best hit = 1).
+-    """
+-    if rank <= 0:
++    Guarded against non-positive ranks and zero/negative denominators.
++    """
++    if rank <= 0 or (k + rank) <= 0:
+         return 0.0
+     return 1.0 / (float(k) + float(rank))
+ 
+@@ -66,20 +68,26 @@
+     fts_rank: Optional[int] = None
+     vector_rank: Optional[int] = None
+ 
+-    def __getitem__(self, item: int) -> Any:
+-        """Enables tuple-like indexing: res[0] -> doc_id, res[1] -> score."""
+-        if item == 0:
+-            return self.doc_id
+-        elif item == 1:
+-            return self.score
+-        elif item == 2:
+-            return self.content
+-        elif item == 3:
+-            return self.metadata
+-        raise IndexError(f"SearchResult index out of range: {item}")
++    def __getitem__(self, item: Union[int, slice]) -> Any:
++        """
++        Enables tuple-like indexing and sequence unpacking:
++        res[0] / res[-4] -> doc_id
++        res[1] / res[-3] -> score
++        res[2] / res[-2] -> content
++        res[3] / res[-1] -> metadata
++        """
++        fields = (self.doc_id, self.score, self.content, self.metadata)
++        try:
++            return fields[item]
++        except (IndexError, TypeError) as exc:
++            raise IndexError(f"SearchResult index out of range: {item}") from exc
+ 
+     def __len__(self) -> int:
+         return 4
++
++    def __iter__(self):
++        """Allows direct sequence unpacking: d, s, c, m = res."""
++        return iter((self.doc_id, self.score, self.content, self.metadata))
+ 
+ 
+ class NumpyDenseEmbedder:
+@@ -128,26 +136,55 @@
+ 
+     def __init__(
+         self,
+-        db_path: Optional[Path] = None,
++        db_path: Optional[Union[Path, str]] = None,
+         k: int = 60,
+         embedding_dim: int = 384,
+     ):
+         self.k = k
+         self.embedding_dim = embedding_dim
+         self.embedder = NumpyDenseEmbedder(dim=embedding_dim)
+-        self.db_path = db_path or DEFAULT_MEMORY_DB_PATH
++
++        if not db_path:
++            self.db_path = DEFAULT_MEMORY_DB_PATH
++        elif isinstance(db_path, str):
++            self.db_path = Path(db_path)
++        else:
++            self.db_path = db_path
++
+         self._lock = threading.Lock()
++        self._is_memory = str(self.db_path) == ":memory:"
++        self._shared_conn: Optional[sqlite3.Connection] = None
+ 
+         # In-memory vector index cache: doc_id -> np.ndarray
+         self._vectors: Dict[str, np.ndarray] = {}
+         self._docs: Dict[str, Dict[str, Any]] = {}
+ 
+-        if str(self.db_path) != ":memory:":
++        if not self._is_memory:
+             self.db_path.parent.mkdir(parents=True, exist_ok=True)
+         self._init_db()
+ 
++    @contextmanager
++    def _db_connection(self):
++        """
++        Thread-safe context manager managing SQLite transaction lifecycle
++        and guaranteeing immediate, explicit connection closing on Windows.
++        """
++        with self._lock:
++            if self._is_memory:
++                if self._shared_conn is None:
++                    self._shared_conn = sqlite3.connect(":memory:", check_same_thread=False)
++                with self._shared_conn:
++                    yield self._shared_conn
++            else:
++                conn = sqlite3.connect(str(self.db_path))
++                try:
++                    with conn:
++                        yield conn
++                finally:
++                    conn.close()
++
+     def _init_db(self):
+-        with self._lock, sqlite3.connect(self.db_path) as conn:
++        with self._db_connection() as conn:
+             conn.execute("PRAGMA journal_mode = WAL")
+             conn.execute("""
+                 CREATE TABLE IF NOT EXISTS memory_docs (
+@@ -164,7 +201,6 @@
+                     tokenize='trigram'
+                 )
+             """)
+-            conn.commit()
+ 
+     def index_text(
+         self,
+@@ -181,7 +217,7 @@
+         meta_str = json.dumps(meta)
+ 
+         # 1. Update SQLite and FTS5
+-        with self._lock, sqlite3.connect(self.db_path) as conn:
++        with self._db_connection() as conn:
+             conn.execute(
+                 "INSERT OR REPLACE INTO memory_docs (id, content, metadata, created_at) VALUES (?, ?, ?, ?)",
+                 (doc_id, text, meta_str, now),
+@@ -191,7 +227,6 @@
+             except Exception:
+                 pass
+             conn.execute("INSERT INTO memory_fts (id, content) VALUES (?, ?)", (doc_id, text))
+-            conn.commit()
+ 
+         # 2. Update In-Memory cache & Vector index
+         vec = self.embedder.embed(text)
+@@ -209,7 +244,7 @@
+             return []
+ 
+         hits: List[Tuple[str, int]] = []
+-        with self._lock, sqlite3.connect(self.db_path) as conn:
++        with self._db_connection() as conn:
+             cur = conn.cursor()
+             try:
+                 # FTS5 ranked match
+@@ -343,19 +378,27 @@
+ 
+     def delete_document(self, doc_id: str) -> bool:
+         """Removes a document from both stores."""
+-        with self._lock, sqlite3.connect(self.db_path) as conn:
++        with self._db_connection() as conn:
+             conn.execute("DELETE FROM memory_docs WHERE id = ?", (doc_id,))
+             conn.execute("DELETE FROM memory_fts WHERE id = ?", (doc_id,))
+-            conn.commit()
+         self._vectors.pop(doc_id, None)
+         self._docs.pop(doc_id, None)
+         return True
+ 
+     def clear(self) -> None:
+         """Clears all indexed documents."""
+-        with self._lock, sqlite3.connect(self.db_path) as conn:
++        with self._db_connection() as conn:
+             conn.execute("DELETE FROM memory_docs")
+             conn.execute("DELETE FROM memory_fts")
+-            conn.commit()
+         self._vectors.clear()
+         self._docs.clear()
++
++    def close(self) -> None:
++        """Explicitly closes any persistent shared in-memory connection."""
++        with self._lock:
++            if self._shared_conn is not None:
++                try:
++                    self._shared_conn.close()
++                except Exception:
++                    pass
++                self._shared_conn = None

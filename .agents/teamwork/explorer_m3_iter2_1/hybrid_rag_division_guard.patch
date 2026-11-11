@@ -1,0 +1,10 @@
+--- backend/memory/hybrid_rag.py
++++ backend/memory/hybrid_rag.py (remediated)
+@@ -33,6 +33,6 @@
+     Computes Reciprocal Rank Fusion score: 1.0 / (k + rank).
+     rank is 1-based (best hit = 1).
+     """
+-    if rank <= 0:
++    if rank <= 0 or (k + rank) <= 0:
+         return 0.0
+     return 1.0 / (float(k) + float(rank))

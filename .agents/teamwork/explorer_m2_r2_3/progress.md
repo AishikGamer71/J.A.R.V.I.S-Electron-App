@@ -1,0 +1,40 @@
+# Progress — Explorer 3 (Milestone 2 Iteration 2)
+Last visited: 2026-11-11T11:28:00Z
+
+- [x] Initialized DISPATCH.md, BRIEFING.md, and progress.md
+- [x] Read mandatory input files:
+  - ORIGINAL_REQUEST.md
+  - PROJECT.md
+  - SCOPE.md & GATE_STATUS.md
+  - Reviewer 1 report & Challenger 1 adversarial report
+- [x] Inspected source files & test harness:
+  - `src/lib/gateway-client.ts`
+  - `src/pages/dashboard.tsx`
+  - `src/lib/state-machine.ts`
+  - `tests/test_challenger_m2_adversarial_stress.ts`
+  - `src/components/dashboard/holographic-core/holographic-core-scene.tsx`
+  - `src/components/dashboard/holographic-core/__tests__/empirical-lifecycle.test.ts`
+  - `src/components/dashboard/holographic-core/__tests__/event-wiring.test.ts`
+  - `src/components/dashboard/holographic-core/__tests__/adversarial-m2.test.ts`
+- [x] Executed test harness and observed 8 failure modes:
+  - 1.1 Combinatorial priority inversion (63/64 pass)
+  - 1.2 1000 Rapid random event bursts (979/1000 pass)
+  - 1.3 `isLegacyTestFixture` priority inversion (`WEB_SEARCH` instead of `SPEAKING`)
+  - 3.2 `VisualizerStateArbitrator` absent from `HolographicCoreScene`
+  - 3.3 `gatewayClient` tool.result immediate `THINKING` dispatch
+  - 3.4 `dashboard.tsx` hardcoded 3000ms timer
+  - 3.5 `realtimeBusState` permanent stuck state in `HolographicCoreScene`
+  - 5.1 Stale `realtimeBusState` shadowing `jarvisRealtimeRef.voiceState`
+- [x] Analyzed and designed remediation solutions:
+  - 1. Delay mechanism on `tool.result` in `gateway-client.ts` using `TOOL_DWELL_MS` (2000ms)
+  - 2. Dashboard timer harmonization (`TOOL_DWELL_MS` = 2000ms and `TOOL_TIMEOUT_MS` = 20000ms)
+  - 3. `playTtsAudio` speech cleanup preserving active tool / thinking / listening / base state
+  - 4. Removal of `isLegacyTestFixture` and updating `empirical-lifecycle.test.ts`
+  - 5. Instantiation and wiring of `VisualizerStateArbitrator` in `holographic-core-scene.tsx`
+  - 6. Automatic decay/expiration of `realtimeBusState` (`ALERT_DWELL_MS` = 4000ms, `TOOL_DWELL_MS` = 2000ms)
+  - 7. Disambiguation of regex word boundaries in `classifyToolState`
+  - 8. Deduplication of window keydown listeners
+- [ ] Write `report.md` in state folder
+- [ ] Write `handoff.md` (5-component report) in state folder
+- [ ] Update `BRIEFING.md`
+- [ ] Send completion message to parent

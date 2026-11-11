@@ -1,0 +1,138 @@
+# Progress Log
+
+## Current Status
+Last visited: 2026-11-10T17:00:15Z
+- [x] Survey codebase, reference material, and master prompt (spec_miner_survey_1, explorer_survey_2, explorer_survey_3 completed)
+- [x] Formulate PROJECT.md with architecture, feature inventory (40 features), milestones (M1–M6), interface contracts, and code layout
+- [x] E2E Testing Track: TEST_INFRA.md and TEST_READY.md published (250 tests implemented, 100% active pass rate, 0 failures)
+- [x] Milestone M1: Workspace Governance, Rules & UI Visualizer Tuning [DONE - CERTIFIED]
+  - Iteration 2 Gate Result: PASS (All reviewers, challengers, and forensic auditor approved)
+  - 30/30 M1 feature tests passing, 67/67 targeted tests passing, 0 failures, 0 errors
+- [x] Milestone M2: Security, Continuous Learning, Brain & State Store [DONE - CERTIFIED]
+  - Dispatched Explorers:
+    - explorer_m2_1: Security & ECC Spec Miner [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m2_2: State Store & SQLite WAL Schema 12 Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m2_3: Autonomous Brain & Execution Core Explorer [COMPLETED - blueprints delivered in handoff.md]
+  - Implementation: worker_m2 [COMPLETED - 9 backend modules implemented, 82/82 M2 tests passed]
+  - Verification Gate (Iteration 1):
+    - reviewer_m2_1: M2 Security & State Reviewer [COMPLETED - REQUEST_CHANGES]
+    - reviewer_m2_2: M2 Brain & Execution Reviewer [COMPLETED - APPROVE]
+    - challenger_m2_1: M2 Security & State Challenger [COMPLETED - REQUEST_CHANGES]
+    - challenger_m2_2: M2 Brain & Execution Challenger [COMPLETED - APPROVE]
+    - auditor_m2_1: M2 Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 1 Gate Result: FAIL (telemetry loss under concurrency, instinct contradiction blinding, destructive command flag evasions, null-byte command handling, system32 subpath protection, quoted azure keys, nested tool arguments)
+  - Iteration 2 Remediation:
+    - explorer_m2_iter2_1: Security Shield Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m2_iter2_2: Concurrency Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m2_iter2_3: Learning Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - worker_m2_iter2: Applying surgical remediations across 6 backend modules [COMPLETED - All V1..V7 resolved, 100% test pass]
+  - Verification Gate (Iteration 2):
+    - reviewer_m2_iter2_1: M2 Iter2 Security Reviewer [COMPLETED - APPROVE]
+    - reviewer_m2_iter2_2: M2 Iter2 Core Reviewer [COMPLETED - APPROVE]
+    - challenger_m2_iter2_1: M2 Iter2 Security Challenger [COMPLETED - APPROVE]
+    - challenger_m2_iter2_2: M2 Iter2 Cognitive Challenger [COMPLETED - APPROVE]
+    - auditor_m2_iter2_1: M2 Iter2 Forensic Auditor [COMPLETED - CLEAN]
+    - Iteration 2 Gate Result: PASS (All 5 verifiers approved; 100% clean audit, 0% telemetry loss, sub-23ms interrupt, 0 UI drift)
+- [x] Milestone M3: Hardware Profiling, Routing, Hybrid RAG & Voice Pipeline [DONE - CERTIFIED]
+  - Dispatched Explorers:
+    - explorer_m3_1: Hardware & Power Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m3_2: Model Router & Hybrid RAG Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m3_3: Voice Pipeline Explorer [COMPLETED - blueprints delivered in handoff.md]
+  - Implementation: worker_m3 [COMPLETED - 40/40 M3 tests passed, 100% active tests]
+  - Verification Gate (Iteration 1):
+    - reviewer_m3_1: Hardware & Router Reviewer [COMPLETED - APPROVE]
+    - reviewer_m3_2: RAG & Voice Reviewer [COMPLETED - APPROVE]
+    - challenger_m3_1: Hardware & Routing Challenger [COMPLETED - APPROVE]
+    - challenger_m3_2: RAG & Audio Challenger [COMPLETED - REQUEST_CHANGES]
+    - auditor_m3_1: M3 Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 1 Gate Result: FAIL (challenger_m3_2 REQUEST_CHANGES: cold-start barge-in latency 167.83ms > 32ms SLA, on_speaking stop event clear, compute_rrf_score zero-division risk)
+  - Iteration 2 Remediation:
+    - explorer_m3_iter2_1: Audio Pipeline Latency & State Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m3_iter2_2: Hybrid RAG Robustness Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m3_iter2_3: Voice & Hardware Integration Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - Implementation: worker_m3_iter2 [COMPLETED - 100% tests passed, cold latency 0.0096ms <= 32ms]
+  - Verification Gate (Iteration 2):
+    - reviewer_m3_iter2_1: Audio & RAG Reviewer [COMPLETED - APPROVE]
+    - reviewer_m3_iter2_2: Routing & Hardware Reviewer [COMPLETED - APPROVE]
+    - challenger_m3_iter2_1: Audio Latency & State Challenger [COMPLETED - APPROVE]
+    - challenger_m3_iter2_2: RAG & Power Challenger [COMPLETED - APPROVE]
+    - auditor_m3_iter2_1: M3 Iter2 Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 2 Gate Result: PASS (All 5 verifiers approved; cold barge-in latency 0.0096ms <= 32ms, 0% UI drift, 100% tests green)
+- [x] Milestone M4: Desktop, Web & Document Automation [DONE - CERTIFIED]
+  - Dispatched Explorers:
+    - explorer_m4_1: Windows Bridge & OmniParser Explorer [COMPLETED - blueprints in handoff.md]
+    - explorer_m4_2: Agent-S3 Desktop Runner Explorer [COMPLETED - blueprints in handoff.md]
+    - explorer_m4_3: Web & Document Automation Explorer [COMPLETED - blueprints in handoff.md]
+  - Implementation: worker_m4 [COMPLETED - 25/25 M4 tests passed, 0 UI drift]
+  - Verification Gate (Iteration 1):
+    - reviewer_m4_1: Desktop Automation Reviewer [COMPLETED - APPROVE]
+    - reviewer_m4_2: Web & Document Reviewer [COMPLETED - REQUEST_CHANGES: browser_use_runner.py dummy mock delegation, tool_dispatcher process leak]
+    - challenger_m4_1: Desktop Abort Challenger [COMPLETED - APPROVE]
+    - challenger_m4_2: Web Document Challenger [COMPLETED - APPROVE]
+    - auditor_m4_1: M4 Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 1 Gate Result: FAIL (reviewer_m4_2 REQUEST_CHANGES)
+  - Iteration 2 Remediation:
+    - explorer_m4_iter2_1: Real Browser CDP & Playwright Automation Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m4_iter2_2: Tool Dispatcher Lifecycle & Process Safety Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m4_iter2_3: MarkItDown Regex & Delimiter Robustness Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - Implementation: worker_m4_iter2 [COMPLETED - 25/25 M4 tests passed, 200/200 active tests passed, 0 UI drift]
+  - Verification Gate (Iteration 2):
+    - reviewer_m4_iter2_1: Web Automation Reviewer [COMPLETED - APPROVE]
+    - reviewer_m4_iter2_2: Process Lifecycle Reviewer [COMPLETED - APPROVE]
+    - challenger_m4_iter2_1: Playwright Stress Challenger [COMPLETED - REQUEST_CHANGES: evaluate_js top-level return syntax error; extract_text empty page fallback]
+    - challenger_m4_iter2_2: Process & Document Challenger [COMPLETED - APPROVE: 11/11 stress tests passed, 100% process leak elimination, XML/table repair confirmed]
+    - auditor_m4_iter2_1: Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 2 Gate Result: FAIL (challenger_m4_iter2_1 REQUEST_CHANGES)
+  - Iteration 3 Remediation:
+    - explorer_m4_iter3_1: JS Evaluation & IIFE Auto-wrapping Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m4_iter3_2: Text Extraction & Empty Page Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m4_iter3_3: Test Alignment & Regression Explorer [COMPLETED - patch and 6-step plan in handoff.md]
+    - Implementation: worker_m4_iter3 [COMPLETED - 25/25 M4 tests passed, 19/19 challenger iter2_1 tests passed, 200/200 active tests passed, 0 UI drift]
+  - Verification Gate (Iteration 3):
+    - reviewer_m4_iter3_1: Web Automation Reviewer [COMPLETED - APPROVE]
+    - reviewer_m4_iter3_2: Process Safety Reviewer [COMPLETED - APPROVE]
+    - challenger_m4_iter3_1: Playwright Empirical Challenger [COMPLETED - APPROVE]
+    - challenger_m4_iter3_2: Process & Document Challenger [COMPLETED - APPROVE]
+    - auditor_m4_iter3_1: Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 3 Gate Result: PASS (Unanimous APPROVE & CLEAN; 0 UI drift; 0 orphaned processes)
+- [x] Milestone M5: Vision Senses, Mobile, Unified Gateway & Multi-Env [DONE - CERTIFIED]
+  - Dispatched Explorers:
+    - explorer_m5_1: Vision Senses & Mobile Control Explorer [COMPLETED - blueprints in handoff.md]
+    - explorer_m5_2: Senses Web Extraction & Deep Research Explorer [COMPLETED - blueprints in handoff.md]
+    - explorer_m5_3: Gateway, WebSockets, Multi-Env & Docs Explorer [COMPLETED - blueprints in handoff.md]
+  - Implementation: worker_m5 [COMPLETED - 50/50 M5 tests passed, 250/250 all passed, 0 UI drift]
+  - Verification Gate (Iteration 1):
+    - reviewer_m5_1: Vision & Senses Reviewer [COMPLETED - APPROVE]
+    - reviewer_m5_2: Gateway & Multi-Env Reviewer [COMPLETED - REQUEST_CHANGES: /search limit vs top_k, /v1/permissions KeyError 'name']
+    - challenger_m5_1: Vision & Mobile Challenger [COMPLETED - REQUEST_CHANGES: validate_adb_command whitespace, stranger streak mock]
+    - challenger_m5_2: Gateway & WebSocket Challenger [COMPLETED - REQUEST_CHANGES: /search limit vs top_k, /v1/permissions KeyError 'name']
+    - auditor_m5_1: Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 1 Gate Result: FAIL (reviewer_m5_2, challenger_m5_2, challenger_m5_1 REQUEST_CHANGES)
+  - Iteration 2 Remediation:
+    - explorer_m5_iter2_1: Gateway Endpoints Fix Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m5_iter2_2: Mobile & Senses Hardening Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - explorer_m5_iter2_3: Test Suite Hardening Explorer [COMPLETED - blueprints delivered in handoff.md]
+    - worker_m5_iter2: Milestone M5 Iteration 2 Worker [COMPLETED - 253/253 E2E passed, 0 UI drift]
+  - Verification Gate (Iteration 2):
+    - reviewer_m5_iter2_1: Vision & Senses Reviewer [COMPLETED - APPROVE]
+    - reviewer_m5_iter2_2: Gateway & Multi-Env Reviewer [COMPLETED - APPROVE]
+    - challenger_m5_iter2_1: Vision & Mobile Challenger [COMPLETED - APPROVE]
+    - challenger_m5_iter2_2: Gateway & WebSocket Challenger [COMPLETED - APPROVE]
+    - auditor_m5_iter2_1: Forensic Integrity Auditor [COMPLETED - CLEAN]
+    - Iteration 2 Gate Result: PASS (Unanimous APPROVE, Auditor CLEAN, 253/253 E2E passed, 0 UI drift)
+- [x] Milestone M6: Final Milestone: 100% E2E Test Suite & Adversarial Hardening [DONE - CERTIFIED]
+  - Phase 1: 100% E2E Test Pass (Tiers 1-4) [COMPLETED - 253/253 tests passed]
+  - Phase 2: Adversarial Coverage Hardening (Tier 5) [COMPLETED]:
+    - challenger_m6_1: Core Subsystems Adversarial Challenger [COMPLETED - APPROVE: 40/40 tests in test_adversarial_m6_core.py passed]
+    - challenger_m6_2: Automation & Senses Adversarial Challenger [COMPLETED - APPROVE: 66/66 tests in test_adversarial_m6_automation_senses.py passed]
+  - Final Verification Gate:
+    - reviewer_m6_1: Core Subsystems Final Reviewer [COMPLETED - APPROVE]
+    - reviewer_m6_2: Automation & Gateway Reviewer [COMPLETED - APPROVE]
+    - auditor_m6_1: Forensic Integrity Auditor (System-Wide Certification) [COMPLETED - CLEAN]
+  - Iteration 1 Gate Result: PASS (Unanimous Reviewer APPROVE, unanimous Challenger APPROVE, Auditor CLEAN, 253/253 E2E passed, 411/411 audited tests passed, 0 UI drift, _donor_staging eliminated)
+
+## Iteration Status
+Milestones M1–M6 100% COMPLETE AND SYSTEM-WIDE CERTIFIED.
+
+
+
