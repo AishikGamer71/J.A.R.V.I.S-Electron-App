@@ -1,0 +1,818 @@
+/**
+ * J.A.R.V.I.S Gateway Client (WebSocket & HTTP Control Plane)
+ * High-performance, bi-directional, reconnecting bridge adhering to
+ * the Unified WebSocket Contract (src/shared/protocol.ts).
+ */
+
+import {
+  type ProtocolMessageType,
+  type WebSocketEnvelope,
+  type SystemMetricsPayload,
+  type AgentStateValue,
+  type ClientCommandPayload,
+  createEnvelope
+} from '@/shared/protocol';
+import { classifyToolState, TOOL_DWELL_MS } from '@/components/dashboard/holographic-core/state-machine';
+import { jarvisRealtimeRef } from '@/services/jarvisBridge';
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  tier?: 'tier1_local' | 'tier2_balanced' | 'tier3_cloud';
+  model?: string;
+  created_at: number;
+}
+
+export interface HardwareTelemetry {
+  cpu_percent: number;
+  ram_percent: number;
+  ram_used_gb: number;
+  ram_total_gb: number;
+  cpu_temp?: number;
+  cpu_freq_mhz?: number;
+  disk_percent?: number;
+  battery_percent?: number;
+  battery_charging?: boolean;
+  gpu_name?: string;
+  vram_used_mb?: number;
+  vram_total_mb?: number;
+  system_tier: 'low' | 'mid' | 'high';
+}
+
+export interface NetworkStatus {
+  is_online: boolean;
+  bytes_sent_rate?: number;
+  bytes_recv_rate?: number;
+  latency_ms?: number;
+}
+
+export interface ConfirmationRequest {
+  confirmationId: string;
+  toolName: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  arguments: Record<string, any>;
+  timeoutSeconds: number;
+  timestamp: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  tool: string;
+  args_hash: string;
+  args_summary: Record<string, any>;
+  risk_level: string;
+  outcome: string;
+  timestamp: number;
+  details: Record<string, any>;
+}
+
+export interface PermissionEntry {
+  tool: string;
+  scope: string;
+  granted: boolean;
+  granted_at?: number;
+  risk_level?: string;
+}
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  risk_level: string;
+  parameters_schema: Record<string, any>;
+  requires_confirmation?: boolean;
+}
+
+export type ConnectionStatus = 'connecting' | 'online' | 'reconnecting' | 'offline';
+
+type TelemetryListener = (data: { hardware: HardwareTelemetry; network: NetworkStatus }) => void;
+type ChatRouteListener = (data: { sessionId: string; tier: string; model: string; provider: string; isFallback: boolean; reason?: string }) => void;
+type ConfirmationListener = (req: ConfirmationRequest) => void;
+type StateListener = (state: string) => void;
+type ToolListener = (data: { phase: 'start' | 'result'; tool: string; arguments?: any; result?: any; duration_ms?: number }) => void;
+type ConnectionListener = (status: ConnectionStatus) => void;
+
+class JarvisGatewayClient {
+  private ws: WebSocket | null = null;
+  private baseUrl: string = 'http://127.0.0.1:8765';
+  private wsUrl: string = 'ws://127.0.0.1:8765/ws/jarvis';
+  private reconnectTimer: any = null;
+  private isExplicitlyClosed: boolean = false;
+  private currentAudio: HTMLAudioElement | null = null;
+  private ttsAudioTimer: any = null;
+  private reconnectAttempts: number = 0;
+  private currentBaseState: string = 'IDLE';
+  private activeToolName: string | null = null;
+  private toolDwellTimer: any = null;
+
+  public isConnected: boolean = false;
+  public status: ConnectionStatus = 'connecting';
+
+  private telemetryListeners: Set<TelemetryListener> = new Set();
+  private routeListeners: Set<ChatRouteListener> = new Set();
+  private confirmationListeners: Set<ConfirmationListener> = new Set();
+  private stateListeners: Set<StateListener> = new Set();
+  private toolListeners: Set<ToolListener> = new Set();
+  private connectionListeners: Set<ConnectionListener> = new Set();
+  private activeStreams: Map<string, { onDelta: (d: string) => void; onDone: (m: ChatMessage) => void; onError: (e: any) => void }> = new Map();
+
+  constructor() {
+    this.init();
+  }
+
+  public init() {
+    this.isExplicitlyClosed = false;
+    this.connectWs();
+  }
+
+  private setStatus(newStatus: ConnectionStatus) {
+    if (this.status !== newStatus) {
+      this.status = newStatus;
+      this.isConnected = newStatus === 'online';
+      this.connectionListeners.forEach((l) => l(newStatus));
+      window.dispatchEvent(new CustomEvent('jarvis-connection-status', { detail: newStatus }));
+    }
+  }
+
+  public onConnectionStatus(listener: ConnectionListener) {
+    this.connectionListeners.add(listener);
+    listener(this.status);
+    return () => this.connectionListeners.delete(listener);
+  }
+
+  private connectWs() {
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    this.setStatus(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
+
+    try {
+      this.ws = new WebSocket(this.wsUrl);
+
+      this.ws.onopen = () => {
+        this.reconnectAttempts = 0;
+        this.setStatus('online');
+        console.log('[GatewayClient] Connected to J.A.R.V.I.S Unified Control Plane');
+        this.pollTelemetry();
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const raw = JSON.parse(event.data);
+          this.handleMessage(raw);
+        } catch (e) {
+          console.error('[GatewayClient] Error parsing message:', e);
+        }
+      };
+
+      this.ws.onclose = () => {
+        this.setStatus(this.isExplicitlyClosed ? 'offline' : 'reconnecting');
+        if (!this.isExplicitlyClosed) {
+          this.scheduleReconnect();
+        }
+      };
+
+      this.ws.onerror = (err) => {
+        console.warn('[GatewayClient] WebSocket connection notice (retrying):', err);
+      };
+    } catch (e) {
+      this.setStatus('reconnecting');
+      this.scheduleReconnect();
+    }
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer) return;
+    this.reconnectAttempts++;
+    const backoff = Math.min(1000 * Math.pow(1.3, this.reconnectAttempts), 5000);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connectWs();
+    }, backoff);
+  }
+
+  private handleMessage(msg: any) {
+    const type: string = msg.type || '';
+    const payload = msg.payload || msg;
+
+    // 1. UNIFIED CONTRACT: system.metrics
+    if (type === 'system.metrics' || type === 'telemetry:update') {
+      const hw = payload.hardware || {};
+      const net = payload.network || {};
+      this.telemetryListeners.forEach((listener) =>
+        listener({
+          hardware: {
+            cpu_percent: hw.cpu_percent ?? 0,
+            ram_percent: hw.ram_percent ?? 0,
+            ram_used_gb: hw.ram_used_gb ?? 0,
+            ram_total_gb: hw.ram_total_gb ?? 0,
+            cpu_temp: hw.cpu_temp,
+            cpu_freq_mhz: hw.cpu_freq_mhz,
+            disk_percent: hw.disk_percent,
+            battery_percent: hw.battery_percent,
+            battery_charging: hw.battery_charging,
+            gpu_name: hw.gpu_name,
+            vram_used_mb: hw.vram_used_mb,
+            vram_total_mb: hw.vram_total_mb,
+            system_tier: hw.system_tier || 'mid'
+          },
+          network: {
+            is_online: net.is_online ?? true,
+            bytes_sent_rate: net.bytes_sent_rate,
+            bytes_recv_rate: net.bytes_recv_rate,
+            latency_ms: net.latency_ms
+          }
+        })
+      );
+    }
+
+    // 2. UNIFIED CONTRACT: agent.state
+    else if (type === 'agent.state' || type === 'agent_state') {
+      const stateVal = (payload.state || msg.state || '').toUpperCase();
+      this.currentBaseState = stateVal;
+      jarvisRealtimeRef.voiceState = stateVal;
+      jarvisRealtimeRef.isSpeaking = stateVal === 'SPEAKING';
+      jarvisRealtimeRef.isListening = stateVal === 'LISTENING';
+      window.dispatchEvent(new CustomEvent('jarvis-state', { detail: stateVal }));
+      this.stateListeners.forEach((listener) => listener(stateVal));
+    }
+
+    // 3. UNIFIED CONTRACT: agent.token
+    else if (type === 'agent.token' || type === 'agent_stream_chunk' || type === 'chat:delta') {
+      const sessionId = payload.session_id || payload.sessionId || msg.sessionId;
+      const delta = payload.delta !== undefined ? payload.delta : msg.delta;
+      const stream = this.activeStreams.get(sessionId);
+      if (stream && delta) {
+        stream.onDelta(delta);
+      }
+    }
+
+    // 4. UNIFIED CONTRACT: agent.complete
+    else if (type === 'agent.complete' || type === 'agent_message_complete' || type === 'chat:done') {
+      const sessionId = payload.session_id || payload.sessionId || msg.sessionId;
+      const stream = this.activeStreams.get(sessionId);
+      if (stream) {
+        const fullMsg: ChatMessage = {
+          id: payload.message_id || payload.id || `msg_${Date.now()}`,
+          session_id: sessionId,
+          role: 'assistant',
+          content: payload.content || (msg.message && msg.message.content) || '',
+          created_at: payload.created_at || (Date.now() / 1000)
+        };
+        stream.onDone(fullMsg);
+        this.activeStreams.delete(sessionId);
+      }
+    }
+
+    // 5. UNIFIED CONTRACT: tool.start
+    else if (type === 'tool.start' || type === 'tool_call_start') {
+      if (this.toolDwellTimer) {
+        clearTimeout(this.toolDwellTimer);
+        this.toolDwellTimer = null;
+      }
+      const toolName = payload.tool || msg.tool;
+      this.activeToolName = toolName;
+      const toolArgs = payload.arguments || msg.arguments || {};
+      this.toolListeners.forEach((listener) => listener({ phase: 'start', tool: toolName, arguments: toolArgs }));
+      window.dispatchEvent(new CustomEvent('jarvis-tool-call', { detail: { phase: 'start', tool: toolName, arguments: toolArgs } }));
+      const mapped = classifyToolState(toolName);
+      window.dispatchEvent(new CustomEvent('jarvis-state', { detail: { state: mapped } }));
+    }
+
+    // 6. UNIFIED CONTRACT: tool.result
+    else if (type === 'tool.result' || type === 'tool_call_result') {
+      const toolName = payload.tool || msg.tool;
+      const toolRes = payload.result !== undefined ? payload.result : msg.result;
+      const dur = payload.duration_ms;
+      const outcome = payload.outcome || msg.outcome;
+      const isDenied = outcome === 'DENIED' || (typeof toolRes === 'string' && /AgentShield|PermissionError|blocked|denied/i.test(toolRes));
+      this.toolListeners.forEach((listener) => listener({ phase: 'result', tool: toolName, result: toolRes, duration_ms: dur }));
+      window.dispatchEvent(new CustomEvent('jarvis-tool-call', { detail: { phase: 'result', tool: toolName, result: toolRes, duration_ms: dur } }));
+      if (toolRes && typeof toolRes === 'object' && toolRes.widget) {
+        window.dispatchEvent(new CustomEvent(`show-${toolRes.widget}`, { detail: toolRes.data || toolRes }));
+      }
+      if (this.toolDwellTimer) {
+        clearTimeout(this.toolDwellTimer);
+        this.toolDwellTimer = null;
+      }
+      if (isDenied) {
+        this.activeToolName = null;
+        window.dispatchEvent(new CustomEvent('jarvis-state', { detail: { state: 'ALERT' } }));
+      } else {
+        this.toolDwellTimer = setTimeout(() => {
+          this.activeToolName = null;
+          this.toolDwellTimer = null;
+          const nextState = this.activeStreams.size > 0 ? 'THINKING' : (this.currentBaseState || 'THINKING');
+          window.dispatchEvent(new CustomEvent('jarvis-state', { detail: nextState }));
+        }, TOOL_DWELL_MS);
+      }
+    }
+
+    // 7. UNIFIED CONTRACT: client.command (Reverse Window Control)
+    else if (type === 'client.command') {
+      const cmd = payload.command;
+      const win = (window as any).jarvisDesktop?.window || (window as any).jarvis?.window;
+      if (win) {
+        if (cmd === 'hud.minimize') {
+          win.minimize();
+        } else if (cmd === 'hud.show' || cmd === 'hud.expand_mode') {
+          win.maximize();
+        } else if (cmd === 'hud.compact_mode') {
+          window.dispatchEvent(new CustomEvent('toggle-compact-mode', { detail: true }));
+        } else if (cmd === 'hud.always_on_top' && win.setAlwaysOnTop) {
+          win.setAlwaysOnTop(Boolean(payload.params?.alwaysOnTop));
+        }
+      }
+    }
+
+    // 8. UNIFIED CONTRACT: error
+    else if (type === 'error' || type === 'chat:error') {
+      const errMsg = payload.message || payload.error || msg.error || 'Unknown error';
+      const sessionId = payload.session_id || payload.sessionId || msg.sessionId;
+      if (sessionId) {
+        const stream = this.activeStreams.get(sessionId);
+        if (stream) {
+          stream.onError(errMsg);
+          this.activeStreams.delete(sessionId);
+        }
+      }
+    }
+
+    // 9. CONFIRMATION BRIDGE
+    else if (type === 'confirmation_request') {
+      window.dispatchEvent(new CustomEvent('jarvis-state', { detail: { state: 'ALERT' } }));
+      this.confirmationListeners.forEach((listener) =>
+        listener({
+          confirmationId: msg.confirmationId,
+          toolName: msg.toolName,
+          riskLevel: msg.riskLevel,
+          arguments: msg.arguments,
+          timeoutSeconds: msg.timeoutSeconds,
+          timestamp: msg.timestamp
+        })
+      );
+    }
+
+    // 9b. WAKE WORD DETECTED
+    else if (type === 'wake_word_detected') {
+      jarvisRealtimeRef.voiceState = 'LISTENING';
+      jarvisRealtimeRef.isListening = true;
+      jarvisRealtimeRef.isSpeaking = false;
+      window.dispatchEvent(new CustomEvent('jarvis-state', { detail: { state: 'LISTENING' } }));
+    }
+
+    // 10. CHAT ROUTED METADATA
+    else if (type === 'chat:routed') {
+      this.routeListeners.forEach((listener) => listener(msg));
+    }
+
+    // 11. TTS PLAYBACK
+    else if (type === 'tts_playback') {
+      window.dispatchEvent(new CustomEvent('jarvis-tts', { detail: msg }));
+      this.playTtsAudio(msg.audioBase64, msg.mimeType);
+    }
+  }
+
+  public pollTelemetry() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'telemetry:poll' }));
+    }
+  }
+
+  public onTelemetry(listener: TelemetryListener) {
+    this.telemetryListeners.add(listener);
+    return () => this.telemetryListeners.delete(listener);
+  }
+
+  public onChatRouted(listener: ChatRouteListener) {
+    this.routeListeners.add(listener);
+    return () => this.routeListeners.delete(listener);
+  }
+
+  public onAgentState(listener: StateListener) {
+    this.stateListeners.add(listener);
+    return () => this.stateListeners.delete(listener);
+  }
+
+  public onToolCall(listener: ToolListener) {
+    this.toolListeners.add(listener);
+    return () => this.toolListeners.delete(listener);
+  }
+
+  public cancelSpeech() {
+    if (this.ttsAudioTimer) {
+      clearInterval(this.ttsAudioTimer);
+      this.ttsAudioTimer = null;
+    }
+    jarvisRealtimeRef.audioLevel = 0;
+    jarvisRealtimeRef.isSpeaking = false;
+    jarvisRealtimeRef.voiceState = 'IDLE';
+
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+      } catch {}
+      this.currentAudio = null;
+    }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const env = createEnvelope('audio.control', { action: 'cancel_speech' });
+      this.ws.send(JSON.stringify(env));
+      // Also send legacy event for compatibility
+      this.ws.send(JSON.stringify({ type: 'cancel_speech' }));
+    }
+    window.dispatchEvent(new CustomEvent('jarvis-state', { detail: 'IDLE' }));
+  }
+
+  private resolvePostSpeechState(): string {
+    if (this.activeToolName) {
+      return classifyToolState(this.activeToolName);
+    }
+    if (this.activeStreams.size > 0 || this.currentBaseState === 'THINKING') {
+      return 'THINKING';
+    }
+    if (this.currentBaseState === 'LISTENING') {
+      return 'LISTENING';
+    }
+    return this.currentBaseState || 'IDLE';
+  }
+
+  public playTtsAudio(audioBase64: string, mimeType: string = 'audio/mp3') {
+    try {
+      if (this.currentAudio) {
+        this.currentAudio.pause();
+      }
+      if (this.ttsAudioTimer) {
+        clearInterval(this.ttsAudioTimer);
+        this.ttsAudioTimer = null;
+      }
+
+      const audioUrl = `data:${mimeType};base64,${audioBase64}`;
+      const audio = new Audio(audioUrl);
+      this.currentAudio = audio;
+
+      jarvisRealtimeRef.isSpeaking = true;
+      jarvisRealtimeRef.voiceState = 'SPEAKING';
+      window.dispatchEvent(new CustomEvent('jarvis-state', { detail: 'SPEAKING' }));
+
+      // Feed live audio amplitude levels into jarvisRealtimeRef.audioLevel during speech
+      let tick = 0;
+      this.ttsAudioTimer = setInterval(() => {
+        if (!this.currentAudio || this.currentAudio.paused || this.currentAudio.ended) {
+          if (this.ttsAudioTimer) {
+            clearInterval(this.ttsAudioTimer);
+            this.ttsAudioTimer = null;
+          }
+          jarvisRealtimeRef.audioLevel = 0;
+          jarvisRealtimeRef.isSpeaking = false;
+          return;
+        }
+        tick++;
+        // Generate dynamic speech amplitude variation
+        const baseAmp = 0.35 + 0.3 * Math.sin(tick * 0.4) + 0.15 * Math.sin(tick * 0.9);
+        jarvisRealtimeRef.audioLevel = Math.max(0.05, Math.min(1.0, baseAmp));
+      }, 33);
+
+      const cleanup = () => {
+        if (this.ttsAudioTimer) {
+          clearInterval(this.ttsAudioTimer);
+          this.ttsAudioTimer = null;
+        }
+        jarvisRealtimeRef.audioLevel = 0;
+        jarvisRealtimeRef.isSpeaking = false;
+        const postSpeechState = this.resolvePostSpeechState();
+        jarvisRealtimeRef.voiceState = postSpeechState;
+        window.dispatchEvent(new CustomEvent('jarvis-state', { detail: postSpeechState }));
+        this.currentAudio = null;
+      };
+
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+
+      audio.play().catch(() => {
+        cleanup();
+      });
+    } catch (e) {
+      console.warn('[GatewayClient] Error playing TTS audio:', e);
+      if (this.ttsAudioTimer) {
+        clearInterval(this.ttsAudioTimer);
+        this.ttsAudioTimer = null;
+      }
+      jarvisRealtimeRef.audioLevel = 0;
+      jarvisRealtimeRef.isSpeaking = false;
+      const postSpeechState = this.resolvePostSpeechState();
+      jarvisRealtimeRef.voiceState = postSpeechState;
+      window.dispatchEvent(new CustomEvent('jarvis-state', { detail: postSpeechState }));
+    }
+  }
+
+  public onConfirmationRequest(listener: ConfirmationListener) {
+    this.confirmationListeners.add(listener);
+    return () => this.confirmationListeners.delete(listener);
+  }
+
+  public sendConfirmationResponse(confirmationId: string, approved: boolean, reason: string = '') {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: 'confirmation_response',
+          confirmationId,
+          approved,
+          reason
+        })
+      );
+    }
+  }
+
+  public sendChat(
+    sessionId: string,
+    content: string,
+    onDelta: (delta: string) => void,
+    onDone: (message: ChatMessage) => void,
+    onError: (err: any) => void
+  ) {
+    this.activeStreams.set(sessionId, { onDelta, onDone, onError });
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const envelope = createEnvelope('user.message', {
+        session_id: sessionId,
+        content
+      });
+      this.ws.send(JSON.stringify(envelope));
+      // Also send legacy format for backwards compatibility
+      this.ws.send(
+        JSON.stringify({
+          type: 'chat:send',
+          sessionId,
+          content
+        })
+      );
+    } else {
+      this.sendChatHttp(sessionId, content, onDelta, onDone, onError);
+    }
+  }
+
+  private async sendChatHttp(
+    sessionId: string,
+    content: string,
+    onDelta: (delta: string) => void,
+    onDone: (message: ChatMessage) => void,
+    onError: (err: any) => void
+  ) {
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, content, stream: true })
+      });
+
+      if (!response.body) throw new Error('No response body');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let lastModel = '';
+      let lastTier: any = undefined;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value);
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '').trim();
+            if (!dataStr) continue;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.delta) {
+                fullContent += data.delta;
+                lastModel = data.model;
+                lastTier = data.tier;
+                onDelta(data.delta);
+              }
+              if (data.done) {
+                onDone({
+                  id: String(Date.now()),
+                  session_id: sessionId,
+                  role: 'assistant',
+                  content: fullContent,
+                  tier: lastTier,
+                  model: lastModel,
+                  created_at: Date.now() / 1000
+                });
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      onError(e);
+    }
+  }
+
+  public async getHealth(): Promise<{ status: string; service: string; model_status: string; subsystems: any; uptime_seconds: number } | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/health`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  public async getSessions(): Promise<any[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/sessions`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async getMessages(sessionId: string, limit: number = 100): Promise<ChatMessage[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/sessions/${sessionId}/messages?limit=${limit}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async deleteSession(sessionId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/sessions/${sessionId}`, { method: 'DELETE' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  public async searchMessages(query: string): Promise<ChatMessage[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/search?q=${encodeURIComponent(query)}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async getAuditLogs(limit: number = 50, offset: number = 0, tool?: string): Promise<AuditLogEntry[]> {
+    try {
+      const url = `${this.baseUrl}/v1/audit?limit=${limit}&offset=${offset}${tool ? `&tool=${encodeURIComponent(tool)}` : ''}`;
+      const res = await fetch(url);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async getPermissions(): Promise<PermissionEntry[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/permissions`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async grantPermission(tool: string, scope: string = '*'): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/permissions/grant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool, scope })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  public async revokePermission(tool: string, scope: string = '*'): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/permissions/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool, scope })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  public async getTools(): Promise<ToolDefinition[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/tools`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async invokeTool(name: string, args: Record<string, any> = {}, scope: string = '*'): Promise<any> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/tools/invoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, arguments: args, scope })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, error: e.message || String(e) };
+    }
+  }
+
+  public async getCoreMemories(limit: number = 50): Promise<any[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/core-memory?limit=${limit}`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async saveCoreMemory(fact: string, category: string = 'general'): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/core-memory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fact, category })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  public async getAgents(): Promise<AgentInfo[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/agents`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async getInboxTasks(agentName?: string, limit: number = 50): Promise<InboxTask[]> {
+    try {
+      const url = new URL(`${this.baseUrl}/v1/inbox`);
+      url.searchParams.set('limit', String(limit));
+      if (agentName) url.searchParams.set('agent_name', agentName);
+      const res = await fetch(url.toString());
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  public async executeAgentGoal(task: string, context: Record<string, any> = {}): Promise<AgentExecutionResult> {
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/agents/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task, context })
+      });
+      return await res.json();
+    } catch (e: any) {
+      return {
+        agent_name: 'planning_agent',
+        success: false,
+        summary: `Goal execution failed: ${e.message || String(e)}`,
+        error: e.message || String(e)
+      };
+    }
+  }
+}
+
+export interface AgentInfo {
+  name: string;
+  description: string;
+  system_prompt: string;
+  allowed_tools: string[];
+}
+
+export interface InboxTask {
+  task_id: string;
+  parent_task_id: string | null;
+  agent_name: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  input_payload: Record<string, any>;
+  output_payload: Record<string, any>;
+  artifacts: Array<Record<string, any>>;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface AgentExecutionResult {
+  agent_name: string;
+  task_id?: string;
+  success: boolean;
+  summary: string;
+  output_data?: Record<string, any>;
+  artifacts?: Array<Record<string, any>>;
+  error?: string | null;
+}
+
+export const gatewayClient = new JarvisGatewayClient();

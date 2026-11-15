@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jarvis-backend"
+version = "2.0.0"
+description = "J.A.R.V.I.S. Local-First Autonomous Desktop Sidecar Backend"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pydantic>=2.6.0",
+    "websockets>=12.0",
+    "anyio>=4.0.0"
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = [".", "app", "../.."]
+addopts = "-ra -q --ignore=tests/adversarial_ui_physics.ts --ignore=tests/empirical_physics_audit.ts --ignore=tests/test_challenger_m1_adversarial_stress.ts --ignore=tests/test_challenger_m1_math_physics.ts --ignore=tests/test_challenger_m2_adversarial_stress.ts"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning"
+]

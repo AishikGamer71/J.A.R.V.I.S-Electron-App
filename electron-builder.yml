@@ -1,0 +1,38 @@
+appId: com.jarvis.ai
+productName: JARVIS AI
+executableName: JARVIS
+directories:
+  output: release
+  buildResources: apps/desktop/assets
+
+files:
+  - dist/**
+  - apps/desktop/assets/**
+  - apps/desktop/public/**
+  - package.json
+  - "!node_modules/**"
+
+extraResources:
+  - from: services/backend
+    to: backend
+    filter:
+      - "**/*"
+      - "!**/__pycache__"
+      - "!**/*.pyc"
+      - "!**/.venv/**"
+  - from: storage
+    to: storage
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: apps/desktop/assets/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
